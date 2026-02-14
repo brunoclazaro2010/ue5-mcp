@@ -1,6 +1,8 @@
-# BlueprintMCP
+# UE5 MCP — AI-Powered Blueprint Editing for Unreal Engine
 
-An [MCP](https://modelcontextprotocol.io) server that lets AI coding assistants read and write Unreal Engine 5 Blueprint assets. Works with any UE5 5.4+ project.
+Vibe code your Blueprints. This plugin lets Claude Code (or any MCP client) read, modify, and create Unreal Engine 5 Blueprints — just describe what you want in plain English.
+
+> "Add a health component to my player character" · "Find everywhere I use GetActorLocation and replace it" · "What does my damage system do?"
 
 ## Getting Started
 
@@ -15,7 +17,7 @@ Requires Node.js 18+ and UE5 5.4+.
 
 ## How It Works
 
-A UE5 editor plugin hosts an HTTP server. A TypeScript MCP wrapper translates between the MCP protocol and that server. When the editor is open, it runs inside the editor process with zero overhead. When the editor is closed, it can spawn a headless process instead.
+A UE5 editor plugin exposes your project's Blueprints over a local HTTP server. An [MCP](https://modelcontextprotocol.io) wrapper connects that to AI tools like Claude Code. When the editor is open, it runs inside the editor process with zero overhead. When the editor is closed, it can spawn a headless process instead.
 
 ## License
 

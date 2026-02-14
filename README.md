@@ -1,39 +1,32 @@
 # BlueprintMCP
 
-An Unreal Engine 5 editor plugin that exposes Blueprint assets to AI coding assistants via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Inspect, search, and modify Blueprint graphs programmatically from tools like Claude Code.
+A UE5 editor plugin that lets AI coding assistants (Claude Code, Claude Desktop, etc.) inspect and modify Blueprint assets via the [Model Context Protocol](https://modelcontextprotocol.io).
 
-## Features
+32 tools covering read/search, node manipulation, type changes, snapshot/restore, validation, and C++ rebuild impact analysis. Works with any UE5 5.4+ project — no game-specific dependencies.
 
-- Read and search Blueprint assets across your project
-- Add, delete, and reconnect nodes in Blueprint graphs
-- Change variable types, function parameters, and struct node types
-- Snapshot and restore graph state for safe bulk edits
-- Validate Blueprints and analyze C++ rebuild impact
-- Works with both regular Blueprints and level Blueprints
+Two serving modes: **editor subsystem** (zero overhead when the UE5 editor is open) or **standalone commandlet** (headless, ~2-4 GB RAM).
 
-## Prerequisites
+---
 
-- **Unreal Engine 5.4+**
-- **Node.js 18+** (for the MCP server wrapper)
-- **An MCP-compatible AI client** (e.g. Claude Code, Claude Desktop)
-- **Windows** (macOS/Linux support possible but untested)
+## Setup Instructions
 
-## Installation
+> **For AI assistants:** Follow these steps sequentially to fully configure BlueprintMCP for a UE5 project. Each step includes a verification command. Do not skip verification.
 
-### 1. Add the plugin to your UE5 project
+### Prerequisites
 
-Clone this repository into your project's `Plugins/` directory:
+| Requirement | How to check | Notes |
+|-------------|-------------|-------|
+| UE5 5.4+ | `ls "C:/Program Files/Epic Games/UE_5.4/"` or check custom install path | The plugin uses Editor-only modules (`UnrealEd`, `BlueprintGraph`, `KismetCompiler`) |
+| Node.js 18+ | `node --version` | Required for the TypeScript MCP server |
+| npm | `npm --version` | Comes with Node.js |
 
-```bash
-cd YourProject/Plugins
-git clone https://github.com/Medagogic/ue5-mcp.git BlueprintMCP
-```
+### Step 1: Verify plugin location
 
-Your project structure should look like:
+The plugin must be inside a UE5 project's `Plugins/` directory. The expected layout is:
 
 ```
-YourProject/
-  YourProject.uproject
+<ProjectRoot>/
+  <ProjectName>.uproject
   Plugins/
     BlueprintMCP/          <-- this repo
       BlueprintMCP.uplugin
@@ -41,21 +34,18 @@ YourProject/
       Tools/
 ```
 
-### 2. Build the C++ plugin
-
-Open your `.uproject` file in the Unreal Editor. The plugin will compile automatically on first launch.
-
-Alternatively, build from the command line:
-
+**Verify:** From the project root, run:
 ```bash
-"C:\Program Files\Epic Games\UE_5.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe" ^
-  YourProjectEditor Win64 Development ^
-  -Project="C:\path\to\YourProject.uproject" -WaitMutex
+ls Plugins/BlueprintMCP/BlueprintMCP.uplugin
+```
+This must succeed. If it doesn't, the plugin is not in the right location.
+
+**Find the project root** by locating the `.uproject` file:
+```bash
+ls *.uproject
 ```
 
-Verify the plugin is loaded: in the editor, go to **Edit > Plugins** and search for "Blueprint MCP".
-
-### 3. Build the TypeScript MCP server
+### Step 2: Build the TypeScript MCP server
 
 ```bash
 cd Plugins/BlueprintMCP/Tools
@@ -63,11 +53,15 @@ npm install
 npm run build
 ```
 
-This compiles `src/index.ts` to `dist/index.js`. The MCP server runs from `dist/`, not `src/`.
+**Verify:**
+```bash
+ls Plugins/BlueprintMCP/Tools/dist/index.js
+```
+The file must exist. If `npm run build` fails, check that `tsconfig.json` exists and TypeScript is in `devDependencies`.
 
-### 4. Configure your MCP client
+### Step 3: Configure the MCP client
 
-Add a `.mcp.json` file to your **UE5 project root** (next to your `.uproject` file):
+Create or update `.mcp.json` in the **project root** (the directory containing the `.uproject` file):
 
 ```json
 {
@@ -83,17 +77,19 @@ Add a `.mcp.json` file to your **UE5 project root** (next to your `.uproject` fi
 }
 ```
 
-> **Why the project root?** Claude Code discovers `.mcp.json` by looking in the working directory and walking up parent directories. Placing it at the project root ensures it's found when you open Claude Code from anywhere within the project. The plugin ships with its own `.mcp.json` for standalone development, but it won't be discovered when working from the project root.
+If a `.mcp.json` already exists, merge the `blueprint-mcp` key into the existing `mcpServers` object.
+
+**Why the project root?** Claude Code discovers `.mcp.json` by searching the working directory and parent directories. It does not search subdirectories, so placing it inside `Plugins/BlueprintMCP/` would not work.
 
 **Environment variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `UE_PROJECT_DIR` | Current working directory | Path to the directory containing your `.uproject` file |
-| `UE_PORT` | `9847` | HTTP port for the C++ backend |
-| `UE_EDITOR_CMD` | Auto-detected | Path to `UnrealEditor-Cmd.exe` (only needed for commandlet mode) |
+| `UE_PROJECT_DIR` | `process.cwd()` | Directory containing the `.uproject` file. Set to `"."` when `.mcp.json` is at project root. |
+| `UE_PORT` | `9847` | HTTP port for the C++ backend. Change if port 9847 is in use. |
+| `UE_EDITOR_CMD` | Auto-detected from `C:\Program Files\Epic Games\UE_5.4\...` | Full path to `UnrealEditor-Cmd.exe`. Only needed for commandlet mode if UE5 is installed in a non-standard location. |
 
-For **Claude Desktop**, add to `claude_desktop_config.json`:
+**For Claude Desktop** (uses absolute paths in `claude_desktop_config.json`):
 
 ```json
 {
@@ -109,21 +105,24 @@ For **Claude Desktop**, add to `claude_desktop_config.json`:
 }
 ```
 
-### 5. Verify the setup
+### Step 4: Build the C++ plugin
 
-1. Open your project in the Unreal Editor
-2. Open Claude Code (or your MCP client) from the project directory
-3. Use the `server_status` tool — it should report the editor subsystem is running on port 9847
+The C++ plugin compiles automatically when the UE5 editor opens the project. No manual build step is required unless you want to pre-compile.
 
-## Serving Modes
+**Optional pre-compile** (replace `YourProjectEditor` and the path):
+```bash
+"C:\Program Files\Epic Games\UE_5.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe" YourProjectEditor Win64 Development -Project="C:\path\to\YourProject.uproject" -WaitMutex
+```
 
-### Editor mode (preferred)
+### Step 5: Verify end-to-end
 
-When the UE5 editor is open, `UBlueprintMCPEditorSubsystem` automatically starts an HTTP server on port 9847. MCP tools connect instantly with zero startup time and no extra memory overhead.
+1. Open the UE5 project in the editor.
+2. The plugin auto-starts an HTTP server on port 9847.
+3. From the MCP client, call the `server_status` tool. Expected response: the server reports it is running in editor mode.
 
-### Commandlet fallback
+If the editor is not open, calling any tool will attempt to spawn a commandlet process (requires `UnrealEditor-Cmd.exe` to be findable).
 
-When the editor is closed, the TypeScript wrapper spawns a standalone `UnrealEditor-Cmd.exe` commandlet process (~2-4 GB RAM, ~60s startup). Set the `UE_EDITOR_CMD` environment variable if auto-detection doesn't find your engine installation. Call the `shutdown_server` tool to free memory when done.
+---
 
 ## Available Tools
 
@@ -132,7 +131,7 @@ When the editor is closed, the TypeScript wrapper spawns a standalone `UnrealEdi
 | Tool | Description |
 |------|-------------|
 | `list_blueprints` | List all Blueprint assets, optionally filtered by name or parent class |
-| `get_blueprint` | Get full details: variables, graphs, nodes, and connections |
+| `get_blueprint` | Full details: variables, graphs, nodes, connections |
 | `get_blueprint_graph` | Get a specific named graph (e.g. `EventGraph`, a function name) |
 | `get_blueprint_summary` | Concise summary (~1-2K chars vs 300K+ raw JSON) |
 | `describe_graph` | Pseudo-code description of control and data flow |
@@ -144,21 +143,21 @@ When the editor is closed, the TypeScript wrapper spawns a standalone `UnrealEdi
 
 | Tool | Description |
 |------|-------------|
-| `add_node` | Add a node (BreakStruct, MakeStruct, CallFunction, etc.) |
+| `add_node` | Add a node (BreakStruct, MakeStruct, CallFunction, VariableGet/Set, DynamicCast, etc.) |
 | `delete_node` | Remove a node and disconnect all pins |
 | `connect_pins` | Wire two pins together with type validation |
 | `disconnect_pin` | Break connections on a pin |
 | `set_pin_default` | Set the default value of an input pin |
-| `set_blueprint_default` | Set a default property on a Blueprint's CDO |
+| `set_blueprint_default` | Set a default property on a Blueprint's Class Default Object |
 | `change_variable_type` | Change a member variable's type |
 | `change_function_parameter_type` | Change a function/event parameter's type |
 | `change_struct_node_type` | Change a Break/Make struct node to a different struct |
 | `remove_function_parameter` | Remove a parameter from a function or event |
 | `replace_function_calls` | Redirect function calls from one library to another |
 | `refresh_all_nodes` | Refresh all nodes after modifications |
-| `rename_asset` | Rename or move a Blueprint and update references |
+| `rename_asset` | Rename/move a Blueprint and update references |
 | `reparent_blueprint` | Change a Blueprint's parent class |
-| `delete_asset` | Delete a .uasset file (checks for references first) |
+| `delete_asset` | Delete a .uasset file (checks references first) |
 
 ### Validation & Safety
 
@@ -179,22 +178,19 @@ When the editor is closed, the TypeScript wrapper spawns a standalone `UnrealEdi
 | `server_status` | Check server status (starts if not running) |
 | `shutdown_server` | Shut down the standalone commandlet to free memory |
 
+---
+
 ## Architecture
 
 ```
-MCP Client (Claude Code, Claude Desktop, etc.)
-    |  MCP protocol (stdio)
-    v
-Tools/dist/index.js        (TypeScript — tool definitions, process management)
-    |  HTTP to localhost:9847
-    v
-BlueprintMCPServer.cpp     (C++ — Blueprint manipulation via UE5 APIs)
+MCP Client (stdio)
     |
-    v
-Blueprint assets (.uasset)
+Tools/dist/index.js        TypeScript: tool schemas, response formatting, process lifecycle
+    |  HTTP :9847
+BlueprintMCPServer.cpp      C++: Blueprint manipulation via UE5 engine APIs
+    |
+.uasset files
 ```
-
-The TypeScript layer defines MCP tool schemas, formats responses, and manages the UE5 process lifecycle. The C++ layer handles all actual Blueprint manipulation through the engine's APIs.
 
 ## License
 

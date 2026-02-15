@@ -234,12 +234,87 @@ Follow the existing pattern:
 2. **TypeScript side:**
    - Add `server.tool(...)` definition in `src/index.ts` with Zod schema, HTTP call, and response formatting
 
-3. **Build both:**
+3. **Integration tests (REQUIRED):**
+   - Add tests in `Tools/test/tools/` — either a new file or an existing one
+   - Tests must cover: success case, error cases (missing fields, non-existent BP), and response field validation
+   - Follow the existing test pattern (see below)
+
+4. **Build and verify:**
    - `cd Plugins/BlueprintMCP/Tools && npm run build`
    - Rebuild C++ via editor or build tool
+   - `cd Plugins/BlueprintMCP/Tools && npm test` (requires UE5 installed)
 
 ### Testing
 
-1. **Type check only** (fast): `npx tsc --noEmit` (from `Tools/`)
-2. **Full build** (required): `npm run build` (from `Tools/`)
-3. **Runtime test**: Open the UE5 editor, then call any blueprint-mcp tool — the editor subsystem auto-starts on port 9847
+The test suite is self-bootstrapping: it generates a temporary UE5 project, spawns a headless commandlet, creates Blueprint fixtures via the API, runs tests, and cleans up. No committed `.uasset` files are needed.
+
+#### Commands
+
+```bash
+cd Plugins/BlueprintMCP/Tools
+
+# Run full test suite (requires UE5 5.4+ installed)
+npm test
+
+# Watch mode (re-runs on file changes)
+npm run test:watch
+
+# Type check only (fast, no UE5 needed)
+npx tsc --noEmit
+```
+
+#### Test infrastructure
+
+| File | Purpose |
+|------|---------|
+| `Tools/vitest.config.ts` | Vitest configuration (sequential execution, globalSetup) |
+| `Tools/test/bootstrap.ts` | Temp project generation, commandlet lifecycle, cleanup |
+| `Tools/test/helpers.ts` | HTTP helpers (`ueGet`/`uePost`), fixture create/delete wrappers |
+| `Tools/test/setup.ts` | Vitest globalSetup — boots commandlet before tests, tears down after |
+| `Tools/test/tools/*.test.ts` | Per-tool integration tests |
+
+#### Writing new tests
+
+Follow the existing pattern in `Tools/test/tools/`:
+
+```typescript
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { uePost, ueGet, createTestBlueprint, deleteTestBlueprint, uniqueName } from "../helpers.js";
+
+describe("my_new_tool", () => {
+  const bpName = uniqueName("BP_MyToolTest");
+  const packagePath = "/Game/Test";
+
+  beforeAll(async () => {
+    const bp = await createTestBlueprint({ name: bpName });
+    expect(bp.error).toBeUndefined();
+  });
+
+  afterAll(async () => {
+    await deleteTestBlueprint(`${packagePath}/${bpName}`);
+  });
+
+  it("succeeds with valid input", async () => {
+    const data = await uePost("/api/my-endpoint", { blueprint: bpName, ... });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+  });
+
+  it("returns error for non-existent blueprint", async () => {
+    const data = await uePost("/api/my-endpoint", { blueprint: "BP_Nonexistent_XYZ_999", ... });
+    expect(data.error).toBeDefined();
+  });
+
+  it("rejects missing required fields", async () => {
+    const data = await uePost("/api/my-endpoint", {});
+    expect(data.error).toBeDefined();
+  });
+});
+```
+
+Key patterns:
+- Use `uniqueName()` for fixture names to avoid collisions
+- Always clean up fixtures in `afterAll` with `deleteTestBlueprint()`
+- Use `.js` extensions in imports (Node16 ESM resolution)
+- Test the HTTP API directly (`ueGet`/`uePost`), not the MCP tool layer
+- The test commandlet runs on port 19847 (not 9847) to avoid conflicts with a running editor

@@ -1,6 +1,6 @@
-# UE5 MCP — AI-Powered Blueprint Editing for Unreal Engine
+# UE5 MCP — Give AI agents full access to your UE5 assets
 
-Vibe code your Blueprints. This plugin lets Claude Code (or any MCP client) read, modify, and create Unreal Engine 5 Blueprints — just describe what you want in plain English.
+Vibe code your Blueprints, materials, and Anim Blueprints. This plugin lets Claude Code (or any MCP client) read, modify, and create Unreal Engine 5 Blueprints — just describe what you want in plain English.
 
 > "Add a health component to my player character" · "Find everywhere I use GetActorLocation and replace it" · "What does my damage system do?"
 

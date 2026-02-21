@@ -26,11 +26,15 @@ FString FBlueprintMCPServer::HandleChangeVariableType(const FString& Body)
 	FString BlueprintName = Json->GetStringField(TEXT("blueprint"));
 	FString VariableName = Json->GetStringField(TEXT("variable"));
 	FString NewTypeName = Json->GetStringField(TEXT("newType"));
-	FString TypeCategory = Json->GetStringField(TEXT("typeCategory"));
-
-	if (BlueprintName.IsEmpty() || VariableName.IsEmpty() || NewTypeName.IsEmpty() || TypeCategory.IsEmpty())
+	FString TypeCategory; // now optional
+	if (Json->HasField(TEXT("typeCategory")))
 	{
-		return MakeErrorJson(TEXT("Missing required fields: blueprint, variable, newType, typeCategory"));
+		TypeCategory = Json->GetStringField(TEXT("typeCategory"));
+	}
+
+	if (BlueprintName.IsEmpty() || VariableName.IsEmpty() || NewTypeName.IsEmpty())
+	{
+		return MakeErrorJson(TEXT("Missing required fields: blueprint, variable, newType"));
 	}
 
 	// Load Blueprint
@@ -56,86 +60,43 @@ FString FBlueprintMCPServer::HandleChangeVariableType(const FString& Body)
 		return MakeErrorJson(FString::Printf(TEXT("Variable '%s' not found in Blueprint '%s'"), *VariableName, *BlueprintName));
 	}
 
-	// Build the new pin type
+	// Build the new pin type using shared resolver
 	FEdGraphPinType NewPinType;
+	FString ResolveInput = NewTypeName;
 
-	// Strip F/E/U prefix to get the UE internal name
-	FString InternalName = NewTypeName;
-	if ((TypeCategory == TEXT("struct") && InternalName.StartsWith(TEXT("F"))) ||
-		(TypeCategory == TEXT("enum") && InternalName.StartsWith(TEXT("E"))))
+	// If typeCategory is an object reference variant, use colon syntax for the resolver
+	if (TypeCategory == TEXT("object") || TypeCategory == TEXT("softobject") ||
+		TypeCategory == TEXT("class") || TypeCategory == TEXT("softclass") ||
+		TypeCategory == TEXT("interface"))
 	{
-		InternalName = InternalName.Mid(1);
+		ResolveInput = TypeCategory + TEXT(":") + NewTypeName;
 	}
 
-	if (TypeCategory == TEXT("struct"))
+	FString TypeError;
+	if (!ResolveTypeFromString(ResolveInput, NewPinType, TypeError))
 	{
-		// Find the struct
-		UScriptStruct* FoundStruct = nullptr;
-
-		// Try finding the struct across all loaded modules
-		FoundStruct = FindFirstObject<UScriptStruct>(*InternalName);
-
-		// Try broader search
-		if (!FoundStruct)
-		{
-			for (TObjectIterator<UScriptStruct> It; It; ++It)
-			{
-				if (It->GetName() == InternalName)
-				{
-					FoundStruct = *It;
-					break;
-				}
-			}
-		}
-
-		if (!FoundStruct)
-		{
-			return MakeErrorJson(FString::Printf(TEXT("Struct '%s' not found"), *NewTypeName));
-		}
-
-		NewPinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
-		NewPinType.PinSubCategoryObject = FoundStruct;
+		return MakeErrorJson(TypeError);
 	}
-	else if (TypeCategory == TEXT("enum"))
+
+	// Derive typeCategory from the resolved pin type for the response
+	if (TypeCategory.IsEmpty())
 	{
-		// Find the enum
-		UEnum* FoundEnum = nullptr;
-
-		// Try finding the enum across all loaded modules
-		FoundEnum = FindFirstObject<UEnum>(*InternalName);
-
-		// Try broader search
-		if (!FoundEnum)
-		{
-			for (TObjectIterator<UEnum> It; It; ++It)
-			{
-				if (It->GetName() == InternalName)
-				{
-					FoundEnum = *It;
-					break;
-				}
-			}
-		}
-
-		if (!FoundEnum)
-		{
-			return MakeErrorJson(FString::Printf(TEXT("Enum '%s' not found"), *NewTypeName));
-		}
-
-		// Use PC_Byte for BP enums (uint8-backed), PC_Enum for native C++ enum class
-		if (FoundEnum->GetCppForm() == UEnum::ECppForm::EnumClass)
-		{
-			NewPinType.PinCategory = UEdGraphSchema_K2::PC_Enum;
-		}
+		if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+			TypeCategory = TEXT("struct");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_Enum || NewPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+			TypeCategory = TEXT("enum");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_Object)
+			TypeCategory = TEXT("object");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject)
+			TypeCategory = TEXT("softobject");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_Class)
+			TypeCategory = TEXT("class");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass)
+			TypeCategory = TEXT("softclass");
+		else if (NewPinType.PinCategory == UEdGraphSchema_K2::PC_Interface)
+			TypeCategory = TEXT("interface");
 		else
-		{
-			NewPinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
-		}
-		NewPinType.PinSubCategoryObject = FoundEnum;
-	}
-	else
-	{
-		return MakeErrorJson(FString::Printf(TEXT("Unsupported typeCategory '%s'. Use 'struct' or 'enum'."), *TypeCategory));
+			TypeCategory = NewPinType.PinCategory.ToString();
 	}
 
 	// Check for dry run

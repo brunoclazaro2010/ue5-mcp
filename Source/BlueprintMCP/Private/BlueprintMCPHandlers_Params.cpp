@@ -39,39 +39,13 @@ FString FBlueprintMCPServer::HandleChangeFunctionParamType(const FString& Body)
 		return MakeErrorJson(LoadError);
 	}
 
-	// Find the new struct type — strip F prefix for UE internal name
-	FString InternalName = NewTypeName;
-	if (InternalName.StartsWith(TEXT("F")))
-	{
-		InternalName = InternalName.Mid(1);
-	}
-
-	UScriptStruct* FoundStruct = nullptr;
-
-	// Try finding the struct across all loaded modules
-	FoundStruct = FindFirstObject<UScriptStruct>(*InternalName);
-
-	// Broader search
-	if (!FoundStruct)
-	{
-		for (TObjectIterator<UScriptStruct> It; It; ++It)
-		{
-			if (It->GetName() == InternalName)
-			{
-				FoundStruct = *It;
-				break;
-			}
-		}
-	}
-
-	if (!FoundStruct)
-	{
-		return MakeErrorJson(FString::Printf(TEXT("Struct '%s' not found"), *NewTypeName));
-	}
-
+	// Resolve the new type using the shared resolver (supports primitives, structs, enums, and object references)
 	FEdGraphPinType NewPinType;
-	NewPinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
-	NewPinType.PinSubCategoryObject = FoundStruct;
+	FString TypeError;
+	if (!ResolveTypeFromString(NewTypeName, NewPinType, TypeError))
+	{
+		return MakeErrorJson(TypeError);
+	}
 
 	// Find the entry node: K2Node_FunctionEntry in a function graph,
 	// or K2Node_CustomEvent in any graph

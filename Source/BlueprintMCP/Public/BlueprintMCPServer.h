@@ -305,6 +305,7 @@ private:
 
 	// ----- Type resolution -----
 	bool ResolveTypeFromString(const FString& TypeName, FEdGraphPinType& OutPinType, FString& OutError);
+	static UClass* FindClassByName(const FString& ClassName);
 
 	// ----- Snapshot storage -----
 	TMap<FString, FGraphSnapshot> Snapshots;

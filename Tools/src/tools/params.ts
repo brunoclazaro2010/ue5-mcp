@@ -6,12 +6,12 @@ import { TYPE_NAME_DOCS, formatUpdatedState } from "../helpers.js";
 export function registerParamTools(server: McpServer): void {
   server.tool(
     "change_function_parameter_type",
-    `Change a function or custom event parameter's type to a new C++ struct type. Works with both Blueprint functions (K2Node_FunctionEntry) and custom events (K2Node_CustomEvent). Reconstructs the node to update output pins. Call refresh_all_nodes afterwards to propagate changes to downstream Break nodes. ${TYPE_NAME_DOCS} Pass dryRun=true to preview changes without saving.`,
+    `Change a function or custom event parameter's type. Supports all types: primitives (bool, int, float, string), structs, enums, and object references. Works with both Blueprint functions (K2Node_FunctionEntry) and custom events (K2Node_CustomEvent). Reconstructs the node to update output pins. Call refresh_all_nodes afterwards to propagate changes to downstream Break nodes. ${TYPE_NAME_DOCS} Pass dryRun=true to preview changes without saving.`,
     {
       blueprint: z.string().describe("Blueprint name or package path (e.g. 'BP_PatientManager')"),
       functionName: z.string().describe("Function or custom event name (e.g. 'UpdateVitals', 'SetSkinState')"),
       paramName: z.string().describe("Parameter name to change (e.g. 'Vitals', 'SkinState')"),
-      newType: z.string().describe("New struct type name with F prefix (e.g. 'FVitals', 'FSkinState')"),
+      newType: z.string().describe("New type: primitive ('bool', 'float'), struct ('FVitals'), enum ('EMyEnum'), or reference ('object:Actor', 'class:Actor', 'softobject:Actor')"),
       dryRun: z.boolean().optional().describe("If true, preview changes without modifying the Blueprint"),
       batch: z.array(z.object({
         blueprint: z.string(),

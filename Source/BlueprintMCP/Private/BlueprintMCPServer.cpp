@@ -1585,6 +1585,36 @@ TSharedPtr<FJsonObject> FBlueprintMCPServer::SerializePin(UEdGraphPin* Pin)
 }
 
 // ============================================================
+// FindClassByName — locate a UClass by name (C++ or Blueprint)
+// ============================================================
+
+UClass* FBlueprintMCPServer::FindClassByName(const FString& ClassName)
+{
+	// Exact match first (handles both C++ classes and Blueprint _C classes)
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		FString Name = It->GetName();
+		if (Name == ClassName || Name == ClassName + TEXT("_C"))
+		{
+			return *It;
+		}
+	}
+
+	// Case-insensitive fallback
+	for (TObjectIterator<UClass> It; It; ++It)
+	{
+		FString Name = It->GetName();
+		if (Name.Equals(ClassName, ESearchCase::IgnoreCase) ||
+			Name.Equals(ClassName + TEXT("_C"), ESearchCase::IgnoreCase))
+		{
+			return *It;
+		}
+	}
+
+	return nullptr;
+}
+
+// ============================================================
 // ResolveTypeFromString — shared type resolution helper
 // ============================================================
 
@@ -1655,6 +1685,66 @@ bool FBlueprintMCPServer::ResolveTypeFromString(
 	{
 		OutPinType.PinCategory = UEdGraphSchema_K2::PC_Object;
 		OutPinType.PinSubCategoryObject = UObject::StaticClass();
+	}
+	else if (TypeName.StartsWith(TEXT("object:"), ESearchCase::IgnoreCase))
+	{
+		FString ClassName = TypeName.Mid(7); // after "object:"
+		UClass* FoundClass = FindClassByName(ClassName);
+		if (!FoundClass)
+		{
+			OutError = FString::Printf(TEXT("Class '%s' not found for object reference type"), *ClassName);
+			return false;
+		}
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_Object;
+		OutPinType.PinSubCategoryObject = FoundClass;
+	}
+	else if (TypeName.StartsWith(TEXT("softobject:"), ESearchCase::IgnoreCase))
+	{
+		FString ClassName = TypeName.Mid(11); // after "softobject:"
+		UClass* FoundClass = FindClassByName(ClassName);
+		if (!FoundClass)
+		{
+			OutError = FString::Printf(TEXT("Class '%s' not found for soft object reference type"), *ClassName);
+			return false;
+		}
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_SoftObject;
+		OutPinType.PinSubCategoryObject = FoundClass;
+	}
+	else if (TypeName.StartsWith(TEXT("class:"), ESearchCase::IgnoreCase))
+	{
+		FString ClassName = TypeName.Mid(6); // after "class:"
+		UClass* FoundClass = FindClassByName(ClassName);
+		if (!FoundClass)
+		{
+			OutError = FString::Printf(TEXT("Class '%s' not found for class reference type (TSubclassOf)"), *ClassName);
+			return false;
+		}
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_Class;
+		OutPinType.PinSubCategoryObject = FoundClass;
+	}
+	else if (TypeName.StartsWith(TEXT("softclass:"), ESearchCase::IgnoreCase))
+	{
+		FString ClassName = TypeName.Mid(10); // after "softclass:"
+		UClass* FoundClass = FindClassByName(ClassName);
+		if (!FoundClass)
+		{
+			OutError = FString::Printf(TEXT("Class '%s' not found for soft class reference type"), *ClassName);
+			return false;
+		}
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_SoftClass;
+		OutPinType.PinSubCategoryObject = FoundClass;
+	}
+	else if (TypeName.StartsWith(TEXT("interface:"), ESearchCase::IgnoreCase))
+	{
+		FString ClassName = TypeName.Mid(10); // after "interface:"
+		UClass* FoundClass = FindClassByName(ClassName);
+		if (!FoundClass)
+		{
+			OutError = FString::Printf(TEXT("Class '%s' not found for interface reference type"), *ClassName);
+			return false;
+		}
+		OutPinType.PinCategory = UEdGraphSchema_K2::PC_Interface;
+		OutPinType.PinSubCategoryObject = FoundClass;
 	}
 	else
 	{
@@ -1727,7 +1817,7 @@ bool FBlueprintMCPServer::ResolveTypeFromString(
 			else
 			{
 				OutError = FString::Printf(
-					TEXT("Unknown type '%s'. Use: bool, int, float, string, name, text, byte, vector, rotator, transform, or a struct/enum name (e.g. FVector, EMyEnum)"),
+					TEXT("Unknown type '%s'. Use: bool, int, float, string, name, text, byte, vector, rotator, transform, object, a struct/enum name (e.g. FVector, EMyEnum), or colon syntax for references (object:Actor, softobject:Actor, class:Actor, softclass:Actor, interface:MyInterface)"),
 					*TypeName);
 				return false;
 			}

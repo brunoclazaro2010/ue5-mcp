@@ -6,19 +6,19 @@ import { TYPE_NAME_DOCS, formatUpdatedState } from "../helpers.js";
 export function registerVariableTools(server: McpServer): void {
   server.tool(
     "change_variable_type",
-    `Change a Blueprint member variable's type to a new struct or enum type. Compiles and saves the Blueprint. Downstream Make/Break nodes using the old type will need manual fixing. ${TYPE_NAME_DOCS} Pass dryRun=true to preview changes without saving.`,
+    `Change a Blueprint member variable's type. Supports structs, enums, and object reference types. Compiles and saves the Blueprint. Downstream Make/Break nodes using the old type will need manual fixing. ${TYPE_NAME_DOCS} For object references, either use colon syntax in newType (e.g. 'object:Actor') or pass typeCategory + class name in newType. Pass dryRun=true to preview changes without saving.`,
     {
       blueprint: z.string().describe("Blueprint name or package path (e.g. 'BP_PatientManager')"),
       variable: z.string().describe("Variable name (e.g. 'Vitals')"),
-      newType: z.string().describe("New type name with prefix (e.g. 'FVitals', 'ELungSound')"),
-      typeCategory: z.enum(["struct", "enum"]).describe("Whether the new type is a struct or enum"),
+      newType: z.string().describe("New type name: struct ('FVitals'), enum ('ELungSound'), or colon syntax for references ('object:Actor', 'class:Actor', 'softobject:Actor', 'softclass:Actor', 'interface:MyInterface')"),
+      typeCategory: z.enum(["struct", "enum", "object", "softobject", "class", "softclass", "interface"]).optional().describe("Type category. Optional — auto-detected from newType when using colon syntax or F/E prefix."),
       dryRun: z.boolean().optional().describe("If true, preview changes without modifying the Blueprint"),
       batch: z.array(z.object({
         blueprint: z.string(),
         variable: z.string(),
         newType: z.string(),
-        typeCategory: z.enum(["struct", "enum"]),
-      })).optional().describe("Batch mode: array of {blueprint, variable, newType, typeCategory} objects. When provided, single params are ignored."),
+        typeCategory: z.enum(["struct", "enum", "object", "softobject", "class", "softclass", "interface"]).optional(),
+      })).optional().describe("Batch mode: array of {blueprint, variable, newType, typeCategory?} objects. When provided, single params are ignored."),
     },
     async ({ blueprint, variable, newType, typeCategory, dryRun, batch }) => {
       const err = await ensureUE();

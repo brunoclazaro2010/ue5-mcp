@@ -62,10 +62,18 @@ describe("replace_function_calls", () => {
 describe("change_variable_type", () => {
   const bpName = uniqueName("BP_ChangeVarTest");
   const packagePath = "/Game/Test";
+  const testVarName = "TestVar";
 
   beforeAll(async () => {
     const bp = await createTestBlueprint({ name: bpName });
     expect(bp.error).toBeUndefined();
+    // Add a test variable to the blueprint
+    const addVar = await uePost("/api/add-variable", {
+      blueprint: bpName,
+      variableName: testVarName,
+      variableType: "bool",
+    });
+    expect(addVar.error).toBeUndefined();
   });
 
   afterAll(async () => {
@@ -98,15 +106,112 @@ describe("change_variable_type", () => {
     });
     expect(data.error).toBeDefined();
   });
+
+  it("changes variable to object:Actor via colon syntax", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "object:Actor",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+    expect(data.typeCategory).toBe("object");
+    expect(data.updatedVariable).toBeDefined();
+    expect(data.updatedVariable.type).toBe("object");
+    expect(data.updatedVariable.subtype).toBe("Actor");
+  });
+
+  it("changes variable to object:Actor via typeCategory param", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "Actor",
+      typeCategory: "object",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+    expect(data.typeCategory).toBe("object");
+  });
+
+  it("changes variable to class:Actor (TSubclassOf)", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "class:Actor",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+    expect(data.typeCategory).toBe("class");
+  });
+
+  it("changes variable to softobject:Actor", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "softobject:Actor",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+    expect(data.typeCategory).toBe("softobject");
+  });
+
+  it("auto-detects struct type without typeCategory", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "FVector",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+    expect(data.typeCategory).toBe("struct");
+  });
+
+  it("returns error for non-existent class in object reference", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "object:NonExistentClass_XYZ_999",
+    });
+    expect(data.error).toBeDefined();
+    expect(data.error).toContain("NonExistentClass_XYZ_999");
+  });
+
+  it("dry run with object reference type", async () => {
+    const data = await uePost("/api/change-variable-type", {
+      blueprint: bpName,
+      variable: testVarName,
+      newType: "object:Actor",
+      dryRun: true,
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.dryRun).toBe(true);
+    expect(data.typeCategory).toBe("object");
+  });
 });
 
 describe("change_function_parameter_type", () => {
   const bpName = uniqueName("BP_ChangeFnParamTest");
   const packagePath = "/Game/Test";
+  const funcName = "TestFunc";
+  const paramName = "TestParam";
 
   beforeAll(async () => {
     const bp = await createTestBlueprint({ name: bpName });
     expect(bp.error).toBeUndefined();
+    // Create a function graph with a parameter to test type changes
+    const graph = await uePost("/api/create-graph", {
+      blueprint: bpName,
+      graphName: funcName,
+      graphType: "function",
+    });
+    expect(graph.error).toBeUndefined();
+    const param = await uePost("/api/add-function-parameter", {
+      blueprint: bpName,
+      functionName: funcName,
+      paramName: paramName,
+      paramType: "bool",
+    });
+    expect(param.error).toBeUndefined();
   });
 
   afterAll(async () => {
@@ -139,6 +244,50 @@ describe("change_function_parameter_type", () => {
       blueprint: bpName,
     });
     expect(data.error).toBeDefined();
+  });
+
+  it("changes param to object:Actor", async () => {
+    const data = await uePost("/api/change-function-param-type", {
+      blueprint: bpName,
+      functionName: funcName,
+      paramName: paramName,
+      newType: "object:Actor",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+  });
+
+  it("changes param to class:Actor (TSubclassOf)", async () => {
+    const data = await uePost("/api/change-function-param-type", {
+      blueprint: bpName,
+      functionName: funcName,
+      paramName: paramName,
+      newType: "class:Actor",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+  });
+
+  it("changes param to enum type", async () => {
+    const data = await uePost("/api/change-function-param-type", {
+      blueprint: bpName,
+      functionName: funcName,
+      paramName: paramName,
+      newType: "ECollisionChannel",
+    });
+    expect(data.error).toBeUndefined();
+    expect(data.success).toBe(true);
+  });
+
+  it("returns error for non-existent class in object reference", async () => {
+    const data = await uePost("/api/change-function-param-type", {
+      blueprint: bpName,
+      functionName: funcName,
+      paramName: paramName,
+      newType: "object:NonExistentClass_XYZ_999",
+    });
+    expect(data.error).toBeDefined();
+    expect(data.error).toContain("NonExistentClass_XYZ_999");
   });
 });
 

